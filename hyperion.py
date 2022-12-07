@@ -1,26 +1,20 @@
+from getpass import getpass
+from time import sleep, time
+from pystyle import *
+from zlib import compress
+from random import choice, shuffle, randint
+from re import findall
+from io import BytesIO
+from tokenize import tokenize, untokenize, TokenInfo
+from binascii import hexlify
 from builtins import *
 
 builtglob = list(globals().keys())
 
 
-
-from binascii import hexlify
-from tokenize import tokenize, untokenize, TokenInfo
-from io import BytesIO
-from re import findall
-
-from random import choice, shuffle, randint
-
-from zlib import compress
-
-
-
-
-
 class Hyperion:
 
-    def __init__(self, content: str, clean = True, obfcontent = True, renlibs = True, renvars = True, addbuiltins = True, randlines = True, shell = True, camouflate = True, safemode = True, ultrasafemode = False) -> None:
-
+    def __init__(self, content: str, clean=True, obfcontent=True, renlibs=True, renvars=True, addbuiltins=True, randlines=True, shell=True, camouflate=True, safemode=True, ultrasafemode=False) -> None:
         r"""
         Use Safe Modes only if you have errors with your obfuscated script [!!!]
         ## Settings
@@ -57,7 +51,6 @@ class Hyperion:
         >>> # [!!!] No bugs [!!!]
         """
 
-        
         if ultrasafemode == True:
             randlines, shell, renlibs, renvars = False, False, False, False
 
@@ -79,7 +72,6 @@ class Hyperion:
         p("Creating default vars...")
         self.CreateVars()
 
-
         if renlibs:
             p("Renaming imported libraries...")
             valid = self.RenameImports()
@@ -99,7 +91,8 @@ class Hyperion:
             self.CleanCode()
 
         if not self._verify_lin(content):
-            print(stage("Multi-lines brackets detected! Skipping the layers protecting the chunks.", '!!!', Col.light_red, Col.light_red))
+            print(stage("Multi-lines brackets detected! Skipping the layers protecting the chunks.",
+                  '!!!', Col.light_red, Col.light_red))
             randlines, shell = False, False
 
         if randlines:
@@ -128,8 +121,6 @@ class Hyperion:
             self.Camouflate()
         else:
             self.content = ';'.join(self.content)
-
-
 
     # Layers
 
@@ -163,7 +154,8 @@ except:
 {self.content}""".strip()
 
     def AddBuiltins(self):
-        imp = "from builtins import " + ','.join(f'{var}' for var in builtglob if not var.startswith('__') and var not in ('None', 'True', 'False') and f'{var}(' in self.content) + '\n'
+        imp = "from builtins import " + ','.join(f'{var}' for var in builtglob if not var.startswith(
+            '__') and var not in ('None', 'True', 'False') and f'{var}(' in self.content) + '\n'
         if imp == "from builtins import \n":
             imp = ""
         self.content = imp + self.content
@@ -183,18 +175,20 @@ except:
 {1}()['{2}']=__import__
 {0}()['{3}']={2}('builtins').vars"""[1:].format(self.globals, self.locals, self.__import__, self.vars, self.unhexlify).splitlines()
 
-        nimpcontent = [f"{self._randglob()}()['{imports[imp]}']={imp}" for imp in imports]
+        nimpcontent = [
+            f"{self._randglob()}()['{imports[imp]}']={imp}" for imp in imports]
         shuffle(nimpcontent)
 
         impcontent.extend(iter(nimpcontent))
 
         self.local_import = f"locals()['{self.globals}']=globals"
         self.impcontent = impcontent
-        
+
     def RenameImports(self):
         _imports = self._gather_imports()
         if _imports == False:
-            print(stage("Star import detected! Skipping the renaming of imported libraries and variables.", '!!!', Col.light_red, Col.light_red))
+            print(stage("Star import detected! Skipping the renaming of imported libraries and variables.",
+                  '!!!', Col.light_red, Col.light_red))
             # raise self.StarImport()
             return False
         imports = []
@@ -203,11 +197,14 @@ except:
         self.imports = {}
         for imp in imports:
             self.imports[imp] = self._randvar()
-        impcontent = [f"{self._randglob()}()['{self.imports[imp]}']={self._randglob()}()[{self._protect(imp)}]" for imp in self.imports]
+        impcontent = [
+            f"{self._randglob()}()['{self.imports[imp]}']={self._randglob()}()[{self._protect(imp)}]" for imp in self.imports]
         shuffle(impcontent)
 
-        self.add_imports = [lin for lin in self.content.splitlines() if self._is_valid(lin)]
-        self.content = '\n'.join(lin for lin in self.content.splitlines() if lin not in self.add_imports)
+        self.add_imports = [
+            lin for lin in self.content.splitlines() if self._is_valid(lin)]
+        self.content = '\n'.join(
+            lin for lin in self.content.splitlines() if lin not in self.add_imports)
 
         self.impcontent2 = iter(impcontent)
         return True
@@ -227,34 +224,32 @@ except:
         for token in self.tokens:
             string, type = token.string, token.type
 
-            
             if type == 1:
                 if (
                     ((self.tokens[self.tokens.index(token)+1].string == '=' and self._is_not_arg(string)) or
-                    self.tokens[self.tokens.index(token)-1].string in ('def', 'class')) and
+                     self.tokens[self.tokens.index(token)-1].string in ('def', 'class')) and
                     self._check_fstring(string) and
                     self._is_not_library(token=token) and
                     string not in passed and
                     string not in self.imports and
                     (not string.startswith('__') and not string.endswith('__'))
-                    ):
+                ):
                     string = self._randvar()
                     strings[token.string] = string
                 elif string in strings and self._is_not_library(token=token) and self.tokens[self.tokens.index(token)+1].string != '=':
                     string = strings[string]
                 elif string in self.imports and self._is_exact_library(token=token):
                     if ((self.tokens[self.tokens.index(token)+1].string != '=') and
-                        self.tokens[self.tokens.index(token)-1].string not in ('def', 'class')):
+                            self.tokens[self.tokens.index(token)-1].string not in ('def', 'class')):
                         string = self.imports[string]
                 else:
                     passed.append(string)
-            
-            ntokens.append(TokenInfo(type, string, token.start, token.end, token.line))
-            
 
+            ntokens.append(
+                TokenInfo(type, string, token.start, token.end, token.line))
 
         self.content = untokenize(ntokens).decode('utf-8')
- 
+
     def ObfContent(self):
         f = BytesIO(self.content.encode('utf-8'))
         self.tokens = list(tokenize(f.readline))
@@ -276,14 +271,16 @@ except:
             elif type == 3:
                 string = self._obf_str(string)
 
-            ntokens.append(TokenInfo(type, string, token.start, token.end, token.line))
+            ntokens.append(
+                TokenInfo(type, string, token.start, token.end, token.line))
 
         self.ostrings = self.strings
 
         self.lambdas = []
         self._add_lambdas()
 
-        strings = [f"{self.vars}()[{self._protect(var)}]={value}" for var, value in self.strings.items()]
+        strings = [f"{self.vars}()[{self._protect(var)}]={value}" for var,
+                   value in self.strings.items()]
         shuffle(strings)
 
         self.strings = strings
@@ -291,21 +288,21 @@ except:
         self.content = untokenize(ntokens).decode('utf-8')
 
     def CleanCode(self):
-            
-            self.RemoveComments()
-            self.CompressCode()
+
+        self.RemoveComments()
+        self.CompressCode()
 
     def RandLines(self):
         content = []
         lines = self.content.splitlines()
-    
+
         for lin, nextlin in zip(lines, range(len(lines))):
             content.append(lin)
             if (
-                    nextlin == len(lines)-1 or
-                    self._get_first_statement(lines[nextlin+1]) in ('elif', 'else', 'except', 'finally') or
-                    lin.strip()[-1] == ','
-                ):
+                nextlin == len(lines)-1 or
+                self._get_first_statement(lines[nextlin+1]) in ('elif', 'else', 'except', 'finally') or
+                lin.strip()[-1] == ','
+            ):
                 continue
             fakelin = self._fake_lin(self._get_indentations(lines[nextlin+1]))
             content.append(fakelin)
@@ -315,25 +312,30 @@ except:
     def Shell(self):
         chunks = self._get_chunks()
 
-        chunks = [f"{self._protect_var(self.exec)}({self._protect(chunk, r=1)})" for chunk in chunks]
-        chunks = [f"""{self._protect_var(self.eval)}({self._protect_var(self.compile)}({self._protect(chunk, char=2)},filename={self._protect(self._randvar())},mode={self._protect('eval')}))""" for chunk in chunks]
+        chunks = [
+            f"{self._protect_var(self.exec)}({self._protect(chunk, r=1)})" for chunk in chunks]
+        chunks = [
+            f"""{self._protect_var(self.eval)}({self._protect_var(self.compile)}({self._protect(chunk, char=2)},filename={self._protect(self._randvar())},mode={self._protect('eval')}))""" for chunk in chunks]
 
         self.content = '\n'.join(chunks)
-        
+
     def Organise(self):
-        gd_vars = [f"{self.globals}()[{self._protect(self.getattr, basic=True, )}]=getattr", f"{self.globals}()[{self._protect(self.dir, basic=True)}]=dir"]
+        gd_vars = [f"{self.globals}()[{self._protect(self.getattr, basic=True, )}]=getattr",
+                   f"{self.globals}()[{self._protect(self.dir, basic=True)}]=dir"]
         shuffle(gd_vars)
         exec_var = f"{self.globals}()[{self._protect(self.exec)}]={self._protect_built('exec')}"
-        add_imports = [f"{self.globals}()[{self._protect(self.exec)}]({self._protect(imp.strip())})" for imp in self.add_imports]
+        add_imports = [
+            f"{self.globals}()[{self._protect(self.exec)}]({self._protect(imp.strip())})" for imp in self.add_imports]
 
-        self.content = self.local_import + '\n' + '\n'.join(gd_vars) + '\n' + '\n'.join(self.impcontent) + '\n' + exec_var + '\n' + '\n'.join(add_imports) + '\n' + '\n'.join(self.impcontent2) + '\n' + '\n'.join(self.strings) + '\n' + self.content
+        self.content = self.local_import + '\n' + '\n'.join(gd_vars) + '\n' + '\n'.join(self.impcontent) + '\n' + exec_var + '\n' + '\n'.join(
+            add_imports) + '\n' + '\n'.join(self.impcontent2) + '\n' + '\n'.join(self.strings) + '\n' + self.content
 
     def Compress(self):
 
         eval_var = f"globals()['{self._hex('eval')}']"
         str_var = f"globals()['{self._hex('str')}']"
         compile_var = f"globals()['{self._hex('compile')}']"
-        
+
         arg1, arg2 = self._randvar(), self._randvar()
         lambda1 = f"""(lambda {arg1}:{eval_var}({compile_var}({str_var}("{self._hex(eval_var)}({arg1})"),filename='{self._hex(self._randvar())}',mode='{self._hex('eval')}')))"""
         lambda2 = f"(lambda {arg1}:{arg1}(__import__('{self._hex('zlib')}')))"
@@ -364,9 +366,9 @@ except:
         all_keys = keys
 
         all_keys.update(keys2)
-    
-        self.content = ['from builtins import *', ','.join(all_keys.values()) + '=' + ','.join(all_keys.keys()), exec_content]
 
+        self.content = ['from builtins import *', ','.join(
+            all_keys.values()) + '=' + ','.join(all_keys.keys()), exec_content]
 
     def Camouflate(self):
         self.gen = gen = []
@@ -375,16 +377,19 @@ except:
         for _ in range(25):
             self._gen_var()
 
-        compressed = self._split_content(self.compressed, n = 2500)
+        compressed = self._split_content(self.compressed, n=2500)
 
         bvars = {self._randvar(): var for var in compressed}
-        vars = [f"{self._rand_pass()}{' ' * 250};{gen[0]}.{gen[19]}({gen[21]}='{a}',{gen[22]}={b})" for a, b in bvars.items()]
+        vars = [f"{self._rand_pass()}{' ' * 250};{gen[0]}.{gen[19]}({gen[21]}='{a}',{gen[22]}={b})" for a,
+                b in bvars.items()]
         vars = '\n\n'.join(' ' * 8 + var for var in vars)
 
         actions = ('!=', 'is', '==', '<', '>', '>=', '<=')
         keys = ('',)
-        ext = ('((var1, var2) for var2 in var3)', 'var1 if action else action2', '((var2, var1) for var2 in var3 if action)', '(var1 or var2 if var1 and var2 else ... or (var2, var1))')
-        generate = lambda: [
+        ext = ('((var1, var2) for var2 in var3)', 'var1 if action else action2',
+               '((var2, var1) for var2 in var3 if action)', '(var1 or var2 if var1 and var2 else ... or (var2, var1))')
+
+        def generate(): return [
             '{%s: %s}' % (tuple(
                 choice(
                     [repr(self._randvar2()), *gen[11:17]]
@@ -406,15 +411,15 @@ except:
         for _ in range(int((20 / 2) - 1)):
             gen2.extend(generate())
 
-
         rands = [
-            '\n' + (' ' * (4 * 2)) + 'try:\n' +  '    ' * 3 + self._rand_gen(ext, keys, gen, gen2, actions) + '\n\n' + (' ' * (4 * 2)) + f'except {self._rand_error()}:\n' + '    ' * 3 + self._rand_gen(ext, keys, gen, gen2, actions) + '\n\n' + (' ' * (4 * 2)) + f'except:\n' + '    ' * 3 + f"{gen[24]}({self._rand_int()} {self._rand_op()} {self._rand_int()}) == {self._rand_type()}"
+            '\n' + (' ' * (4 * 2)) + 'try:\n' + '    ' * 3 + self._rand_gen(ext, keys, gen, gen2, actions) + '\n\n' + (' ' * (4 * 2)) + f'except {self._rand_error()}:\n' + '    ' * 3 + self._rand_gen(
+                ext, keys, gen, gen2, actions) + '\n\n' + (' ' * (4 * 2)) + f'except:\n' + '    ' * 3 + f"{gen[24]}({self._rand_int()} {self._rand_op()} {self._rand_int()}) == {self._rand_type()}"
             for _ in range(4)
         ]
 
-        randomvars = '+'.join(f"{gen[0]}.{gen[18]}({gen[20]}='{var}')" for var in bvars)
+        randomvars = '+'.join(
+            f"{gen[0]}.{gen[18]}({gen[20]}='{var}')" for var in bvars)
         sourcery = "# sourcery skip: collection-to-bool, remove-redundant-boolean, remove-redundant-except-handler"
-
 
         self.content = f"""
 {content[0]}
@@ -481,9 +486,6 @@ if __name__ == '__main__':
         elif {self._rand_bool(False)}:
             {self._rand_pass(line = False)}
 """.strip()
-        
-
-
 
     # Exceptions
 
@@ -491,31 +493,29 @@ if __name__ == '__main__':
         def __init__(self):
             super().__init__("Star Import is forbidden, please update your script")
 
-
-
     # All
 
-    
     def _verify_lin(self, content):
-        return all(lin.strip() not in ['(','[','{','}',']',')'] for lin in content.splitlines())
+        return all(lin.strip() not in ['(', '[', '{', '}', ']', ')'] for lin in content.splitlines())
 
     def _hex(self, var):
         return ''.join(f"\\x{hexlify(char.encode('utf-8')).decode('utf-8')}" for char in var)
 
     def _randvar(self):
         return choice((
-            ''.join(choice(('l','I')) for _ in range(randint(17, 25))),
-            'O' + ''.join(choice(('O','0','o')) for _ in range(randint(17, 25))),
-            ''.join(choice(('D','O','o')) for _ in range(randint(17, 25))),
-            'S' + ''.join(choice(('S','2')) for _ in range(randint(17, 25))),
-            ''.join(choice(('M','N')) for _ in range(randint(17, 25))),
-            ''.join(choice(('m','n')) for _ in range(randint(17, 25))),
-            ''.join(choice(('X','W')) for _ in range(randint(17, 25))),
-            ''.join(choice(('x','w')) for _ in range(randint(17, 25))),
-            ''.join(choice(('J','I','L')) for _ in range(randint(17, 25))),
-            ''.join(choice(('j','i','l')) for _ in range(randint(17, 25)))
+            ''.join(choice(('l', 'I')) for _ in range(randint(17, 25))),
+            'O' + ''.join(choice(('O', '0', 'o'))
+                          for _ in range(randint(17, 25))),
+            ''.join(choice(('D', 'O', 'o')) for _ in range(randint(17, 25))),
+            'S' + ''.join(choice(('S', '2')) for _ in range(randint(17, 25))),
+            ''.join(choice(('M', 'N')) for _ in range(randint(17, 25))),
+            ''.join(choice(('m', 'n')) for _ in range(randint(17, 25))),
+            ''.join(choice(('X', 'W')) for _ in range(randint(17, 25))),
+            ''.join(choice(('x', 'w')) for _ in range(randint(17, 25))),
+            ''.join(choice(('J', 'I', 'L')) for _ in range(randint(17, 25))),
+            ''.join(choice(('j', 'i', 'l')) for _ in range(randint(17, 25)))
         ))
-    
+
     def _randvar2(self):
         return ''.join(choice('billythegoat356BlueRed') for _ in range(randint(5, 20)))
 
@@ -526,7 +526,6 @@ if __name__ == '__main__':
             self.vars
         ))
 
-    
     def _protect(self, var, basic=False, r=0, char=1):
         char = "'" if char == 1 else '"'
         if basic:
@@ -544,7 +543,6 @@ if __name__ == '__main__':
         protected = self._protect(lib, r=2, basic=True)
         return f"{self.getattr}({self.__import__}({protected}),{self.dir}({self.__import__}({protected}))[{self.dir}({self.__import__}({protected})).index({self._protect(var, r=2, basic=True)})])"
 
-    
     # CreateVars
 
     @property
@@ -554,7 +552,7 @@ if __name__ == '__main__':
         self.getattr = self._randvar()
 
         self.exec = self._randvar()
-        
+
         self.eval = self._randvar()
         self.compile = self._randvar()
         self.join = self._randvar()
@@ -564,7 +562,6 @@ if __name__ == '__main__':
         self.str = self._randvar()
         self.float = self._randvar()
         self.unhexlify = self._randvar()
-        
 
         imports = {
             self._protect_built('eval'): self.eval,
@@ -584,15 +581,15 @@ if __name__ == '__main__':
     def utf8(self):
         return self._protect('utf8', basic=True, r=2)
 
-
     # RenameImports
 
     def _gather_imports(self):
-        imports = [lin for lin in self.content.splitlines() if self._is_valid(lin)]
+        imports = [lin for lin in self.content.splitlines()
+                   if self._is_valid(lin)]
         for imp in imports:
             if '*' in imp:
                 return False
-        return [imp.replace('import ',',').replace('from ', '').replace(' ','').split(',')[1:] if 'from' in imp else imp.replace('import ', '').replace(' ','').split(',') for imp in imports]
+        return [imp.replace('import ', ',').replace('from ', '').replace(' ', '').split(',')[1:] if 'from' in imp else imp.replace('import ', '').replace(' ', '').split(',') for imp in imports]
 
     def _is_valid(self, lin: str):
         return ('import' in lin and '"' not in lin and "'" not in lin and ';' not in lin and '.' not in lin and '#' not in lin)
@@ -611,10 +608,10 @@ if __name__ == '__main__':
         return all(string.lower() not in func for func in funcs)
 
     def _check_fstring(self, string):
-        
-        fstrings = findall(r'{[' + self._fstring_legal_chars + r']*}', self.content.lower())
-        return all(string.lower() not in fstring for fstring in fstrings)
 
+        fstrings = findall(
+            r'{[' + self._fstring_legal_chars + r']*}', self.content.lower())
+        return all(string.lower() not in fstring for fstring in fstrings)
 
     def _is_not_library(self, token: str):
 
@@ -623,9 +620,9 @@ if __name__ == '__main__':
                 token = self.tokens[self.tokens.index(token)-2]
             else:
                 break
-            
+
         return token.string not in self.imports
-    
+
     def _is_exact_library(self, token: str):
         ntoken = token
         while True:
@@ -633,18 +630,18 @@ if __name__ == '__main__':
                 token = self.tokens[self.tokens.index(token)-2]
             else:
                 break
-            
+
         return ntoken == token
-    
+
     @property
     def _gather_funcs(self):
-        lins = [lin.strip().split('(')[1] for lin in self.content.splitlines() if lin.strip().split(' ')[0]=='def']
+        lins = [lin.strip().split('(')[1] for lin in self.content.splitlines()
+                if lin.strip().split(' ')[0] == 'def']
         return lins
 
     @property
     def _fstring_legal_chars(self):
         return """abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUV_WXYZ0123456789/*-+. ,/():"'"""
-
 
     # ObfContent
 
@@ -662,7 +659,7 @@ if __name__ == '__main__':
     def _obf_int(self, string):
         if string.isdigit():
             obf = self._adv_int(int(string))
-        elif string.replace('.','').isdigit():
+        elif string.replace('.', '').isdigit():
             obf = f"{self.float}({self._protect(string)})"
         else:
             return string
@@ -671,7 +668,7 @@ if __name__ == '__main__':
             string = self._randvar()
         self.strings[string] = obf
         return string
-    
+
     def _obf_str(self, string):
         obf, do = self._adv_str(string)
         if do:
@@ -686,43 +683,43 @@ if __name__ == '__main__':
     def _adv_int(self, string):
         n = choice((1, 2))
         if n == 1:
-            rnum = randint(1000000,9999999999)
+            rnum = randint(1000000, 9999999999)
             x = rnum - string
             return f"{self.eval}({self._protect(f'{self._underscore_int(rnum)}+(-{self._underscore_int(x)})')})"
         elif n == 2:
             rnum = randint(0, string)
             x = string - rnum
             return f"{self.eval}({self._protect(f'{self._underscore_int(x)}-(-{self._underscore_int(rnum)})')})"
-    
+
     def _adv_str(self, string):
-    
+
         var = f"""{self.eval}({self._protect(string, r=1)})"""
-        if (string.replace('b','').replace('u','').replace('r','').replace('f','')[0] == '"' and string.split('"')[0].count('f') != 0) or (string.replace('b','').replace('u','').replace('r','').replace('f','')[0] == "'" and string.split("'")[0].count('f') != 0):
+        if (string.replace('b', '').replace('u', '').replace('r', '').replace('f', '')[0] == '"' and string.split('"')[0].count('f') != 0) or (string.replace('b', '').replace('u', '').replace('r', '').replace('f', '')[0] == "'" and string.split("'")[0].count('f') != 0):
             return var, False
         return var, True
 
     def _underscore_int(self, string):
         # return string
-        return '_'.join(str(string)).replace('-_','-').replace('+_','+')
+        return '_'.join(str(string)).replace('-_', '-').replace('+_', '+')
 
     # CleanCode
 
     def RemoveComments(self):
-        self.content = "".join(lin + '\n' for lin in self.content.splitlines() if lin.strip() and not lin.strip().startswith('#'))
+        self.content = "".join(lin + '\n' for lin in self.content.splitlines()
+                               if lin.strip() and not lin.strip().startswith('#'))
 
     def CompressCode(self):
         content = self.content
         while True:
-            for x in ('=','(',')','[',']','{','}','*','+','-','/',':','<','>',','):
+            for x in ('=', '(', ')', '[', ']', '{', '}', '*', '+', '-', '/', ':', '<', '>', ','):
                 content = content.replace(f' {x}', x).replace(f'{x} ', x)
             if content == self.content:
                 break
             self.content = content
-    
+
     def CompressIndentations(self):
         # a refaire
         ...
-
 
     # RandLines
 
@@ -743,7 +740,7 @@ if __name__ == '__main__':
             else:
                 break
         return s
-    
+
     def _add_lambdas(self):
         for _ in range(10):
             lamb = self._randvar()
@@ -753,7 +750,7 @@ if __name__ == '__main__':
 
     def _fake_lin(self, indent):
         return f"{' ' * indent}if {choice(list(self.ostrings.keys()))}:\n{' ' * indent * 2 if indent else ' '}{choice(self.lambdas)}({choice(list(self.ostrings.keys()))})"
-        
+
     # Shell
 
     def _get_chunks(self):
@@ -761,12 +758,12 @@ if __name__ == '__main__':
         lines = self.content.splitlines()
 
         chunk = []
-    
+
         for lin, nextlin in zip(lines, range(len(lines))):
             chunk.append(lin)
             if nextlin+1 == len(lines):
                 break
-            
+
             if (
                 self._get_indentations(lines[nextlin+1]) == 0 and
                 self._get_first_statement(lines[nextlin+1]) not in ('elif', 'else', 'except', 'finally') and
@@ -774,7 +771,6 @@ if __name__ == '__main__':
             ):
                 chunks.append('\n'.join(chunk))
                 chunk = []
-            
 
         if chunk:
             chunks.append('\n'.join(chunk))
@@ -801,14 +797,14 @@ if __name__ == '__main__':
 
     def _rand_type(self):
         return choice(('type', 'None', 'Ellipsis', 'True', 'False', 'str', 'int', 'float', 'bool'))
-    
+
     def _rand_int(self):
         return randint(-100000, 100000)
-    
+
     def _rand_op(self):
         return choice(('+', '-', '*', '/'))
 
-    def _rand_pass(self, line = True):
+    def _rand_pass(self, line=True):
         gen = self.gen
         a1 = f"{gen[0]}({gen[4]} = {self._rand_int()} {self._rand_op()} {self._rand_int()})"
         c1 = f"{gen[2]}({gen[7]} = {self._rand_int()} {self._rand_op()} {gen[10]}.{gen[3]})"
@@ -824,7 +820,7 @@ if __name__ == '__main__':
     def _rand_line(self, chosen):
         if randint(1, 2) == 1:
             return chosen
-        c2 = self._rand_pass(line = False)
+        c2 = self._rand_pass(line=False)
         final = f"""
 if {self._rand_bool(False)}:
             {chosen}
@@ -837,8 +833,7 @@ if {self._rand_bool(False)}:
         op = '<' if op == True else '>'
         return f"{randint(100000, 499999)} {op} {randint(500000, 9999999)}"
 
-
-    def _split_content(self, content, n = 500):
+    def _split_content(self, content, n=500):
         ncontent = []
         while content:
             if len(content) > n:
@@ -851,24 +846,24 @@ if {self._rand_bool(False)}:
 
     def _rand_gen(self, ext, keys, gen, gen2, actions):
         return ' '.join([
-                choice(keys),
-                choice(
+            choice(keys),
+            choice(
                 ext
-                ).replace('action2', ' '.join([gen2[randint(11, 17)], choice(actions), gen[randint(11, 17)]])).replace(
-                    'var1', gen2[randint(11, 17)]
-                ).replace(
-                    'var2', choice(gen[11:17])
-                ).replace(
-                    'var3', gen2[randint(11, 17)]
-                ).replace('action', ' '.join([gen[randint(11, 17)], choice(actions), gen[randint(11, 17)]])).replace(
-                    'var1', gen2[randint(11, 17)]
-                ).replace(
-                    'var2', gen2[randint(11, 17)]
-                ).replace(
-                    'var3', gen2[randint(11, 17)]
-                )
-            ]).strip()
-    
+            ).replace('action2', ' '.join([gen2[randint(11, 17)], choice(actions), gen[randint(11, 17)]])).replace(
+                'var1', gen2[randint(11, 17)]
+            ).replace(
+                'var2', choice(gen[11:17])
+            ).replace(
+                'var3', gen2[randint(11, 17)]
+            ).replace('action', ' '.join([gen[randint(11, 17)], choice(actions), gen[randint(11, 17)]])).replace(
+                'var1', gen2[randint(11, 17)]
+            ).replace(
+                'var2', gen2[randint(11, 17)]
+            ).replace(
+                'var3', gen2[randint(11, 17)]
+            )
+        ]).strip()
+
     def _rand_error(self):
         return choice((
             'OSError',
@@ -896,13 +891,6 @@ if {self._rand_bool(False)}:
         _gen = list(gen)
         gen.extend(f'_{g.lower()}' for g in _gen)
         return gen
-
-
-
-    
-from pystyle import *
-from time import sleep, time
-from getpass import getpass
 
 
 text = r"""
@@ -947,7 +935,8 @@ def p(text):
     # sleep(0.05)
     return print(stage(text))
 
-def stage(text: str, symbol: str = '...', col1 = light, col2 = None) -> str:
+
+def stage(text: str, symbol: str = '...', col1=light, col2=None) -> str:
     if col2 is None:
         col2 = light if symbol == '...' else purple
     return f""" {Col.Symbol(symbol, col1, dark)} {col2}{text}{Col.reset}"""
@@ -958,23 +947,27 @@ def main():
     System.Title("Hyperion")
     Cursor.HideCursor()
     print()
-    print(Colorate.Diagonal(Colors.DynamicMIX((purple, dark)), Center.XCenter(banner)))
+    print(Colorate.Diagonal(Colors.DynamicMIX(
+        (purple, dark)), Center.XCenter(banner)))
     print('\n')
-    file = input(stage(f"Drag the file you want to obfuscate {dark}-> {Col.reset}", "?", col2 = bpurple)).replace('"','').replace("'","")
+    file = input(stage(
+        f"Drag the file you want to obfuscate {dark}-> {Col.reset}", "?", col2=bpurple)).replace('"', '').replace("'", "")
     print('\n')
-
 
     try:
         with open(file, mode='rb') as f:
             script = f.read().decode('utf-8')
         filename = file.split('\\')[-1]
     except:
-        input(f" {Col.Symbol('!', light, dark)} {Col.light_red}Invalid file!{Col.reset}")
+        input(
+            f" {Col.Symbol('!', light, dark)} {Col.light_red}Invalid file!{Col.reset}")
         exit()
 
-    skiprenaming = input(stage(f"Skip the renaming of libraries and variables {dark}[{light}y{dark}/{light}n{dark}] -> {Col.reset}", "?")).replace('"','').replace("'","") == 'y'
+    skiprenaming = input(stage(
+        f"Skip the renaming of libraries and variables {dark}[{light}y{dark}/{light}n{dark}] -> {Col.reset}", "?")).replace('"', '').replace("'", "") == 'y'
     print()
-    skipchunks = input(stage(f"Skip the protection of chunks {dark}[{light}y{dark}/{light}n{dark}] -> {Col.reset}", "?")).replace('"','').replace("'","") == 'y'
+    skipchunks = input(stage(
+        f"Skip the protection of chunks {dark}[{light}y{dark}/{light}n{dark}] -> {Col.reset}", "?")).replace('"', '').replace("'", "") == 'y'
     # camouflate = input(stage(f"Camouflate the final code to make it less suspicious {dark}[{light}y{dark}/{light}n{dark}] {Col.reset}", "?")).replace('"','').replace("'","") == 'y'
 
     renvars, renlibs = (False, False) if skiprenaming else (True, True)
@@ -983,18 +976,25 @@ def main():
     print('\n')
 
     now = time()
-    Hype = Hyperion(content=script, renvars = renvars, renlibs = renlibs, randlines = randlines, shell = shell)
+    Hype = Hyperion(content=script, renvars=renvars,
+                    renlibs=renlibs, randlines=randlines, shell=shell)
     script = Hype.content
     now = round(time() - now, 2)
 
     with open(f'obf-{filename}', mode='w') as f:
         f.write(script)
-    
-    print('\n')
-    getpass(stage(f"Obfuscation completed succesfully in {light}{now}s{bpurple}.{Col.reset}", "?", col2 = bpurple))
-    # dire aussi l ancienne et nouvelle taille du fichier
 
+    print('\n')
+    getpass(stage(
+        f"Obfuscation completed succesfully in {light}{now}s{bpurple}.{Col.reset}", "?", col2=bpurple))
+    # dire aussi l ancienne et nouvelle taille du fichier
 
 
 if __name__ == '__main__':
     main()
+
+input("Press enter to close program")
+# this is the 998th line
+# this is the 998th line
+# this is the 999th line
+# this is the 1000th line
